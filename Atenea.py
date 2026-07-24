@@ -10,6 +10,13 @@ import sounddevice as sd
 import numpy as np
 #Wakeword
 from openwakeword.model import Model
+#Skills
+from Skills.hora import obtener_hora
+import json
+
+skills = {
+    "hora": obtener_hora
+}
 
 
 def hablar (mensaje):
@@ -107,17 +114,35 @@ llm = Llama(
 
 #Parametros LLM
 messages = [
-    {
-        "role": "system",
-        "content":
-        "/no_think\n"
-        "Eres un asistente de voz. "
-        "Responde en español de forma breve y directa."
-    }
-]
+{
+"role":"system",
+"content":
+"/no_think\n"
+"Responde en español de forma breve y directa."
 
+"""
+Eres un asistente de voz.
+
+Si el usuario pide una acción disponible,
+responde SOLO con JSON.
+
+Skills disponibles:
+- hora
+
+Ejemplo:
+Usuario: ¿Qué hora es?
+Respuesta:
+{"skill":"hora"}
+
+Si no hay skill:
+{"skill":"ninguna","respuesta":"texto"}
+"""
+}
+]
 while True:
+    #Esperar a que el usuario diga la wakeword
     esperar_wakeword()
+    #Escuchar la orden del usuario
     texto_usuario = escuchar()
     print("Usuario:", texto_usuario)
     if not texto_usuario:
@@ -128,7 +153,22 @@ while True:
         "content": texto_usuario
     })
 
+    #El modelo genera la respuesta
     respuesta_modelo=generar_respuesta(messages)
+    #Filtrar la respuesta para ver si es una skill
+    try:
+        datos = json.loads(respuesta_modelo)
+
+        if datos["skill"] != "ninguna":
+
+            funcion = skills[datos["skill"]]
+            respuesta_modelo = funcion()
+
+        else:
+            respuesta_modelo = datos["respuesta"]
+
+    except:
+        pass
 
     messages.append({
         "role": "assistant",
