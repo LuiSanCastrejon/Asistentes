@@ -3,12 +3,14 @@ from llama_cpp import Llama
 #Texto a voz
 from piper.voice import PiperVoice
 import wave
-import sounddevice as sd
 import soundfile as sf
 #Voz a texto
 from faster_whisper import WhisperModel
 import sounddevice as sd
 import numpy as np
+#Wakeword
+from openwakeword.model import Model
+
 
 def hablar (mensaje):
     output_filename = "Prueba_piper.wav"
@@ -50,6 +52,32 @@ def generar_respuesta(messages):
         texto = texto.split("</think>")[-1].strip()
 
     return texto
+
+def esperar_wakeword():
+    samplerate = 16000
+    blocksize = 1280
+    print("Esperando wake word...")
+
+    with sd.InputStream(
+        samplerate=samplerate,
+        channels=1,
+        dtype=np.int16,
+        blocksize=blocksize
+    ) as stream:
+
+        while True:
+            audio, overflow = stream.read(blocksize)
+            if overflow:
+                print("Overflow de audio")
+
+            audio = np.squeeze(audio)
+            pred = model_wakeword.predict(audio)
+            print(f"Alexa: {pred['alexa']:.4f}")
+
+            if pred["alexa"] > 0.6:
+                print("Wake word detectada")
+                model_wakeword.reset()
+                return
 #Inicializar el modelo de voz a texto
 model_whisper = WhisperModel(
     "small",
@@ -64,6 +92,9 @@ seconds = 3
 model_path = "/home/luis/Documents/LLM/voices/es_ES-carlfm-x_low.onnx"
 config_path = "/home/luis/Documents/LLM/voices/es_ES-carlfm-x_low.onnx.json"
 voice = PiperVoice.load(model_path, config_path=config_path)
+
+#Inicializar el modelo de wakeword
+model_wakeword = Model()
 
 #Inicializar LLM
 llm = Llama(
@@ -86,7 +117,9 @@ messages = [
 ]
 
 while True:
+    esperar_wakeword()
     texto_usuario = escuchar()
+    print("Usuario:", texto_usuario)
     if not texto_usuario:
         continue
 
