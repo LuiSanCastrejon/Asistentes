@@ -13,6 +13,8 @@ from openwakeword.model import Model
 #Skills
 from Skills.hora import obtener_hora
 import json
+#VAD
+import webrtcvad
 
 skills = {
     "hora": obtener_hora
@@ -31,17 +33,52 @@ def hablar (mensaje):
     sd.play(data, fs, device=11)
     sd.wait()
 
-def escuchar (idioma="es"):
-    fs_whisper = 16000
-    seconds = 3
-
-    #Grabar el audio del usuario con el microfono
+# Capturar audio con WebRTC VAD
+def capturar_audio():
+    fs = 16000
+    blocksize = 320          # 20 ms
+    silencio_limite = 40     # 10 bloques = 200 ms
     print("Habla...")
-    audio = sd.rec(int(seconds * fs_whisper), samplerate=fs_whisper, channels=1)
-    sd.wait()
-    audio = np.squeeze(audio)
+    audio_total = []
+    silencios = 0
+    hablando = False
+    with sd.InputStream(
+        samplerate=fs,
+        channels=1,
+        dtype=np.int16,
+        blocksize=blocksize
+    ) as stream:
 
-    #Transcribir el audio
+        while True:
+            audio, overflow = stream.read(blocksize)
+            if overflow:
+                print("Overflow")
+
+            audio = np.squeeze(audio)
+            voz = vad.is_speech(audio.tobytes(),sample_rate=fs)
+            if voz:
+                hablando = True
+                silencios = 0
+                audio_total.append(audio)
+
+            elif hablando:
+                audio_total.append(audio)
+                silencios += 1
+                if silencios >= silencio_limite:
+                    break
+
+    if len(audio_total) == 0:
+        return None
+
+    audio_total = np.concatenate(audio_total)
+    # Convertir a float32 para Whisper
+    audio_total = audio_total.astype(np.float32) / 32768.0
+    return audio_total
+
+def escuchar(audio, idioma="es"):
+    if audio is None:
+        return ""
+
     segments, _ = model_whisper.transcribe(audio,language=idioma)
     texto_usuario = "".join(s.text for s in segments).strip()
     return texto_usuario
@@ -85,6 +122,10 @@ def esperar_wakeword():
                 print("Wake word detectada")
                 model_wakeword.reset()
                 return
+#________________________________________________________________________________--
+#Crear VAD
+vad = webrtcvad.Vad(2)
+
 #Inicializar el modelo de voz a texto
 model_whisper = WhisperModel(
     "small",
@@ -139,11 +180,15 @@ Si no hay skill:
 """
 }
 ]
+#------------------
+#Ciclo principal
+#-------------------
 while True:
     #Esperar a que el usuario diga la wakeword
     esperar_wakeword()
     #Escuchar la orden del usuario
-    texto_usuario = escuchar()
+    audio = capturar_audio()
+    texto_usuario = escuchar(audio)
     print("Usuario:", texto_usuario)
     if not texto_usuario:
         continue
@@ -155,6 +200,7 @@ while True:
 
     #El modelo genera la respuesta
     respuesta_modelo=generar_respuesta(messages)
+
     #Filtrar la respuesta para ver si es una skill
     try:
         datos = json.loads(respuesta_modelo)
