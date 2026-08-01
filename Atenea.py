@@ -20,9 +20,8 @@ skills = {
     "hora": obtener_hora
 }
 
-
 def hablar (mensaje):
-    output_filename = "Prueba_piper.wav"
+    output_filename = "Respuesta_modelo.wav"
     texto = mensaje
 
     with wave.open(output_filename, "wb") as wav_file:
@@ -40,7 +39,7 @@ def capturar_audio():
     silencio_limite = 40     # 10 bloques = 200 ms
     print("Habla...")
     audio_total = []
-    silencios = 0
+    silencios = 1
     hablando = False
     with sd.InputStream(
         samplerate=fs,
