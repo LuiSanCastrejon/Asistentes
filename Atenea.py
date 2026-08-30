@@ -11,13 +11,35 @@ import numpy as np
 #Wakeword
 from openwakeword.model import Model
 #Skills
-from Skills.hora import obtener_hora
 import json
+from Skills.hora import obtener_hora
+from Skills.Wikipedia import buscar_wikipedia
+from Skills.Spotify import (
+    reproduce,
+    pausa, 
+    siguiente,
+    anterior,
+    cancion_actual,
+    estado_reproduccion
+)
 #VAD
 import webrtcvad
+#Wiki
+import wikipedia
+import spotipy
+from spotipy.oauth2 import SpotifyOAuth
 
 skills = {
-    "hora": obtener_hora
+    "hora": obtener_hora,
+    "wikipedia": buscar_wikipedia,
+    "Spotify": {
+        "reproducir": reproduce,
+        "pausar": pausa,
+        "siguiente": siguiente,
+        "anterior": anterior,
+        "cancion_actual": cancion_actual,
+        "estado_reproduccion": estado_reproduccion
+    }
 }
 
 def hablar (mensaje):
@@ -36,7 +58,7 @@ def hablar (mensaje):
 def capturar_audio():
     fs = 16000
     blocksize = 320          # 20 ms
-    silencio_limite = 40     # 10 bloques = 200 ms
+    silencio_limite = 10     # 10 bloques = 200 ms
     print("Habla...")
     audio_total = []
     silencios = 1
@@ -90,7 +112,6 @@ def generar_respuesta(messages):
     )
 
     texto = respuesta["choices"][0]["message"]["content"]
-
     if "</think>" in texto:
         texto = texto.split("</think>")[-1].strip()
 
@@ -153,35 +174,45 @@ llm = Llama(
 )
 
 #Parametros LLM
-messages = [
-{
-"role":"system",
-"content":
-"/no_think\n"
-"Responde en español de forma breve y directa."
+messages_router=[
+    {
+        "role": "system",
+        "content":
+        "/no_think\n"
 
-"""
-Eres un asistente de voz.
+        "Eres el router de un asistente de voz.\n\n"
 
-Si el usuario pide una acción disponible,
-responde SOLO con JSON.
+        "Tu función es determinar que skill debe ejecutarse\n "
+        "responde SOLO con JSON válido.\n\n"
 
-Skills disponibles:
-- hora
+        "Skills disponibles:\n"
+        "- hora: obtener la hora actual\n"
+        "- wikipedia: buscar información en Wikipedia\n\n"
+        "Si necesitas Wikipedia:"
+        '{"skill":"wikipedia","consulta":"..."}\n'
 
-Ejemplo:
-Usuario: ¿Qué hora es?
-Respuesta:
-{"skill":"hora"}
+        "Si necesitas la hora:"
+        '{"skill":"hora"}\n'
 
-Si no hay skill:
-{"skill":"ninguna","respuesta":"texto"}
-"""
-}
+        "Si necesitas Spotify:"
+        '{"skill":"..."}\n'
+
+        "Si ninguna skill es necesaria\n"
+        '{"skill":"ninguna"}'
+    }
 ]
-#------------------
-#Ciclo principal
-#-------------------
+
+messages_asistente=[
+    {
+        "role": "system",
+        "content":
+        "/no_think\n"
+        "Eres un asistente de un laboratorio de electrónica.\n"
+        "Responde en español, de forma rápida, sencilla y directa.\n"
+        "No des explicaciones innecesariamente largas.\n"
+        }
+]
+#___________________________________________________________________________________________________
 while True:
     #Esperar a que el usuario diga la wakeword
     esperar_wakeword()
@@ -189,36 +220,44 @@ while True:
     audio = capturar_audio()
     texto_usuario = escuchar(audio)
     print("Usuario:", texto_usuario)
+
     if not texto_usuario:
         continue
 
-    messages.append({
+    messages_router.append({
         "role": "user",
         "content": texto_usuario
     })
 
     #El modelo genera la respuesta
-    respuesta_modelo=generar_respuesta(messages)
-
+    respuesta_router=generar_respuesta(messages_router)
+    print(repr(respuesta_router))
     #Filtrar la respuesta para ver si es una skill
     try:
-        datos = json.loads(respuesta_modelo)
-
-        if datos["skill"] != "ninguna":
-
-            funcion = skills[datos["skill"]]
-            respuesta_modelo = funcion()
-
+        datos = json.loads(respuesta_router)
+        skill = datos["skill"]
+        if skill != "ninguna":
+            funcion = skills[skill]
+            parametros = {
+                k: v
+                for k, v in datos.items()
+                if k != "skill"
+            }
+            respuesta_modelo = funcion(**parametros)
         else:
-            respuesta_modelo = datos["respuesta"]
+            messages_asistente.append({
+                "role": "user",
+                "content": texto_usuario
+            })
+            respuesta_modelo = generar_respuesta(messages_asistente)
+            messages_asistente.append({
+                "role": "assistant",
+                "content": respuesta_modelo
+            })
 
-    except:
-        pass
-
-    messages.append({
-        "role": "assistant",
-        "content": respuesta_modelo
-    })
+    except Exception as e:  
+        print("Error procesando skill:", e)
+        continue
 
     print(respuesta_modelo)
     hablar(respuesta_modelo)
