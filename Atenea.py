@@ -440,48 +440,55 @@ messages_asistente = [
     }
 ]
 #________________________________________________________________________________
-#Bucle principal
-try:
-    while True:
-        #Esperar a que el usuario diga la wakeword
-        esperar_wakeword()
-        #Escuchar la orden del usuario
-        audio = capturar_audio()
-        texto_usuario = escuchar(audio)
-        print("Usuario:", texto_usuario)
+#Procesar una orden (lo usan el bucle de voz y el servidor web)
 
-        if not texto_usuario:
-            continue
+def procesar_orden(texto_usuario):
+    """Decide si la orden es una skill o conversación y devuelve la respuesta en texto."""
+    try:
+        #El router no necesita historial: solo el system prompt y la orden actual
+        respuesta_router = generar_respuesta(
+            [mensaje_router, {"role": "user", "content": texto_usuario}],
+            max_tokens=128,
+            temperature=0
+        )
+        print("Router:", repr(respuesta_router))
 
-        try:
-            #El router no necesita historial: solo el system prompt y la orden actual
-            respuesta_router = generar_respuesta(
-                [mensaje_router, {"role": "user", "content": texto_usuario}],
-                max_tokens=128,
-                temperature=0
-            )
-            print("Router:", repr(respuesta_router))
+        #Filtrar la respuesta para ver si es una skill
+        datos = extraer_json(respuesta_router)
+        skill = str(datos.get("skill", "ninguna")).strip().lower() if datos else "ninguna"
 
-            #Filtrar la respuesta para ver si es una skill
-            datos = extraer_json(respuesta_router)
-            skill = str(datos.get("skill", "ninguna")).strip().lower() if datos else "ninguna"
+        if skill in skills:
+            return ejecutar_skill(skill, datos)
+        if skill != "ninguna":
+            print(f"Skill desconocida '{skill}', responde el asistente")
+        return conversar(texto_usuario)
 
-            if skill in skills:
-                respuesta_modelo = ejecutar_skill(skill, datos)
-            else:
-                if skill != "ninguna":
-                    print(f"Skill desconocida '{skill}', responde el asistente")
-                respuesta_modelo = conversar(texto_usuario)
+    except Exception as e:
+        print("Error procesando la orden:", e)
+        return "Lo siento, ocurrió un error al procesar tu petición."
 
-        except Exception as e:
-            print("Error procesando la orden:", e)
-            respuesta_modelo = "Lo siento, ocurrió un error al procesar tu petición."
+#________________________________________________________________________________
+#Bucle principal (solo al ejecutar este archivo; no al importarlo desde servidor_web.py)
+if __name__ == "__main__":
+    try:
+        while True:
+            #Esperar a que el usuario diga la wakeword
+            esperar_wakeword()
+            #Escuchar la orden del usuario
+            audio = capturar_audio()
+            texto_usuario = escuchar(audio)
+            print("Usuario:", texto_usuario)
 
-        print("Asistente:", respuesta_modelo)
-        try:
-            hablar(respuesta_modelo)
-        except Exception as e:
-            print("Error al reproducir la respuesta:", e)
+            if not texto_usuario:
+                continue
 
-except KeyboardInterrupt:
-    print("\nAsistente detenido.")
+            respuesta_modelo = procesar_orden(texto_usuario)
+
+            print("Asistente:", respuesta_modelo)
+            try:
+                hablar(respuesta_modelo)
+            except Exception as e:
+                print("Error al reproducir la respuesta:", e)
+
+    except KeyboardInterrupt:
+        print("\nAsistente detenido.")
