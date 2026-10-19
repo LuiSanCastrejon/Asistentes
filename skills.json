@@ -22,7 +22,7 @@
 
   "spotify_reproducir": {
   "modulo": "Skills.Spotify",
-  "funcion": "reproduce",
+  "funcion": "reproduce_pausa",
   "descripcion": "reproducir o reanudar la música en Spotify (play)",
   "ejemplos": [
     {"frase": "reproduce"},
@@ -33,7 +33,7 @@
 
   "spotify_pausar": {
     "modulo": "Skills.Spotify",
-    "funcion": "pausa",
+    "funcion": "reproduce_pausa",
     "descripcion": "pausar la música de Spotify"
   },
 
