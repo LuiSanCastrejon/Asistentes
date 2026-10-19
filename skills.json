@@ -1,0 +1,66 @@
+{
+  "hora": {
+    "modulo": "Skills.hora",
+    "funcion": "obtener_hora",
+    "descripcion": "obtener la hora actual",
+    "ejemplos": [
+      {"frase": "qué hora es"}
+    ]
+  },
+
+  "wikipedia": {
+    "modulo": "Skills.Wikipedia",
+    "funcion": "buscar_wikipedia",
+    "descripcion": "buscar información sobre personas, lugares, eventos o temas enciclopédicos",
+    "parametros": {
+      "consulta": "tema a buscar, en pocas palabras"
+    },
+    "ejemplos": [
+      {"frase": "quién fue Nikola Tesla", "argumentos": {"consulta": "Nikola Tesla"}}
+    ]
+  },
+
+  "spotify_reproducir": {
+  "modulo": "Skills.Spotify",
+  "funcion": "reproduce_pausa",
+  "descripcion": "reproducir o reanudar la música en Spotify (play)",
+  "ejemplos": [
+    {"frase": "reproduce"},
+    {"frase": "dale play"},
+    {"frase": "reanuda la música"}
+  ]
+},
+
+  "spotify_pausar": {
+    "modulo": "Skills.Spotify",
+    "funcion": "reproduce_pausa",
+    "descripcion": "pausar la música de Spotify"
+  },
+
+  "spotify_siguiente": {
+    "modulo": "Skills.Spotify",
+    "funcion": "siguiente",
+    "descripcion": "No reproducir, solo pasar a la siguiente canción en Spotify"
+  },
+
+  "spotify_anterior": {
+    "modulo": "Skills.Spotify",
+    "funcion": "anterior",
+    "descripcion": "volver a la canción anterior en Spotify"
+  },
+
+  "spotify_cancion_actual": {
+    "modulo": "Skills.Spotify",
+    "funcion": "cancion_actual",
+    "descripcion": "decir qué canción está sonando en Spotify",
+    "ejemplos": [
+      {"frase": "qué canción es esta"}
+    ]
+  },
+
+  "spotify_estado": {
+    "modulo": "Skills.Spotify",
+    "funcion": "estado_reproduccion",
+    "descripcion": "decir si Spotify está reproduciendo o en pausa"
+  }
+}
