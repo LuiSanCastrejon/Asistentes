@@ -1,13 +1,14 @@
+import os
 import spotipy
 from spotipy.oauth2 import SpotifyOAuth
 
 #__________________________
-def reproduce():
-        spotify.start_playback()
-
-def pausa():
-    spotify.pause_playback()
-
+def reproduce_pausa():
+    estado=estado_reproduccion()
+    if estado=="Reproduciendo":
+        spotify.pause_playback()
+    elif estado=="Pausado":
+                spotify.start_playback()
 def siguiente():
     spotify.next_track()
 
@@ -65,19 +66,10 @@ SCOPE = (
 
 spotify = spotipy.Spotify(
     auth_manager=SpotifyOAuth(
-        client_id="eb9a997c0e3e462fb8986278f947b3fd",
-        client_secret="f5917580b40b439b8c467e6278d59023",
+        client_id=os.environ["SPOTIPY_CLIENT_ID"],
+        client_secret=os.environ["SPOTIPY_CLIENT_SECRET"],
         redirect_uri="http://127.0.0.1:8888/callback",
         scope=SCOPE
     )
 )
 
-#____________________________
-estado=estado_reproduccion()
-if estado=="Reproduciendo":
-    pausa()
-elif estado=="Pausado":
-    reproduce()
-
-cancion=cancion_actual()
-print(cancion)
